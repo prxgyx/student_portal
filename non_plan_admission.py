@@ -256,52 +256,54 @@ def new_entry(student_info):
 	# file_to_write.write(student_id)
 
 
-# Main function
-website_link = "http://edustud.nic.in/mis/MisAdmin/frmMisLoginStudent.aspx"
+def main():
 
-f = open('student_info_for_npa.json')
-student_json_list = json.load(f)
+	website_link = "http://edustud.nic.in/mis/MisAdmin/frmMisLoginStudent.aspx"
 
-chrome_options = Options()
-chrome_options.add_argument('--headless')
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-dev-shm-usage')
-# options.headless = True
+	f = open('student_info_for_npa.json')
+	student_json_list = json.load(f)
 
-browser = webdriver.Chrome(options=chrome_options)
+	chrome_options = Options()
+	chrome_options.add_argument('--headless')
+	chrome_options.add_argument('--no-sandbox')
+	chrome_options.add_argument('--disable-dev-shm-usage')
+	# options.headless = True
 
-browser.get(website_link)
+	browser = webdriver.Chrome(options=chrome_options)
 
-print("Entering username, password and captcha")
+	browser.get(website_link)
 
-browser.find_element_by_xpath("//*[@id='txtLoginid']").send_keys("1959115")
+	print("Entering username, password and captcha")
 
-browser.find_element_by_xpath("//*[@id='txtpassword']").send_keys("99009900")
+	browser.find_element_by_xpath("//*[@id='txtLoginid']").send_keys("1959115")
 
-browser.find_element_by_xpath("//*[@id='ddllogintype']/option[2]").click()
+	browser.find_element_by_xpath("//*[@id='txtpassword']").send_keys("99009900")
 
-with open('IMG.png', 'wb') as file:
-    file.write(browser.find_element_by_xpath('//*[@id="table3"]/tbody/tr[5]/td[2]/img').screenshot_as_png)
+	browser.find_element_by_xpath("//*[@id='ddllogintype']/option[2]").click()
 
-write_text_from_image()
-captcha = read_text_from_image()
+	with open('IMG.png', 'wb') as file:
+	    file.write(browser.find_element_by_xpath('//*[@id="table3"]/tbody/tr[5]/td[2]/img').screenshot_as_png)
 
-browser.find_element_by_xpath("//*[@id='txtimg']").send_keys(captcha)
+	write_text_from_image()
+	captcha = read_text_from_image()
 
-time.sleep(3)
+	browser.find_element_by_xpath("//*[@id='txtimg']").send_keys(captcha)
 
-browser.find_element_by_xpath("//*[@id='btnSubmit']").click()
+	time.sleep(3)
 
-time.sleep(2)
+	browser.find_element_by_xpath("//*[@id='btnSubmit']").click()
 
-student_info = student_json_list[0]
+	time.sleep(2)
 
-# for i in range(0,20):
-# 	print(i)
-# 	time.sleep(1)
+	student_info = student_json_list[0]
 
-for student_info in student_json_list:
-	direct_admission(student_info)
-	# new_entry(student_info)
+	# for i in range(0,20):
+	# 	print(i)
+	# 	time.sleep(1)
 
+	for student_info in student_json_list:
+		direct_admission(student_info)
+		# new_entry(student_info)
 
+if __name__ == '__main__':
+	main()
