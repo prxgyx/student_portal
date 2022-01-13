@@ -77,4 +77,10 @@ def  read_text_from_image():
         l = list(text)
         l[3] = 'I'
         text = "".join(l)
+
+    if text[2] == '0':
+        l = list(text)
+        l[3] = 'O'
+        text = "".join(l)
+
     return text

@@ -11,17 +11,44 @@ from datetime import datetime
 from webdriver_manager.chrome import ChromeDriverManager
 from requests.structures import CaseInsensitiveDict
 from captcha import *
+from selenium.webdriver.support.ui import Select
+import sys
+import re
 
 file_to_write = open("exec2.log", "a")
 
+def validate(date_text):
+	try:
+		datetime.strptime(date_text, '%d/%m/%Y')
+		return True
+	except ValueError:
+		try:
+			datetime.strptime(date_text, '%d/%m/%y')
+			return True
+		except:
+			return False
+
 def valid_date(date_str):
-	d = datetime.strptime(date_str, '%d %B %Y')
-	return d.strftime('%d/%m/%Y')
+	if not validate(date_str):
+		date_str = date_str.replace(" ", "")
+		try:
+			d = datetime.strptime(date_str, '%d%B%Y')
+		except:
+			d = datetime.strptime(date_str, '%d%b%Y')
+		return d.strftime('%d/%m/%Y')
+	else:
+		return date_str
 
 # Function Non plan admission > direct admission
 def direct_admission(student_info):
 
-	print("Doing direct admission")
+	student_info = CaseInsensitiveDict(student_info)
+	if "First" in student_info:
+		student_name = student_info["First"]
+	else:
+		student_name = student_info["First Name"]
+
+	print("Doing direct admission for {}".format(student_name))
 
 	browser.switch_to.default_content()
 
@@ -57,17 +84,16 @@ def direct_admission(student_info):
 
 	browser.switch_to.frame(browser.find_element_by_css_selector("html > frameset > frameset > frame:nth-child(2)"))
 
-	student_info = CaseInsensitiveDict(student_info)
-	if "First" in student_info:
-		student_name = student_info["First"]
-	else:
-		student_name = student_info["First Name"]
+	
 
 	middle_name = student_info["Middle name"]
 
 	last_name = student_info["Last name"]
 
-	grade = str(student_info["Class"])
+	if "class" in student_info:
+		grade = str(student_info["Class"])
+	else:
+		grade = str(student_info["grade"])
 	section = student_info["Section"]
 
 	grade_xpath_map = {"1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "I": 4, "II": 5, "III": 6, "IV": 7, "V": 8}
@@ -89,28 +115,37 @@ def direct_admission(student_info):
 
 	if "DOB" in student_info:
 		dob = student_info["DOB"]
-	else:
+	elif "Birth date" in student_info:
 		dob = student_info["Birth date"]
+	else:
+		dob = student_info["Date of birth"]
 
-	dob = valid_date(dob)
-	browser.find_element_by_xpath("//*[@id='txtDOB']").send_keys(dob)
+	try:
+		dob = valid_date(dob)
+		browser.find_element_by_xpath("//*[@id='txtDOB']").send_keys(dob)
 
-	#Male/Female
-	browser.find_element_by_xpath("//*[@id='ddlGender']/option[2]").click()
+		#Male/Female
+		browser.find_element_by_xpath("//*[@id='ddlGender']/option[2]").click()
 
-	# Admission related process complete?
-	browser.find_element_by_xpath("//*[@id='rblComplete_0']").click()
+		# Admission related process complete?
+		browser.find_element_by_xpath("//*[@id='rblComplete_0']").click()
 
-	# submit
-	# browser.find_element_by_xpath("//*[@id='btnSubmit']").click()
+		# submit
+		browser.find_element_by_xpath("//*[@id='btnSubmit']").click()
 
-	# time.sleep(2)
+		time.sleep(2)
 
-	# temp_id = browser.find_element_by_xpath("//*[@id='lblMsg']/font[2]").text + "\n"
+	except selenium.common.exceptions.StaleElementReferenceException as e:
+		direct_admission(student_info)
 
-	# file_to_write.write(temp_id)
+	try:
+		temp_id = browser.find_element_by_xpath("//*[@id='lblMsg']/font[2]").text + "\n"
+		file_to_write.write(temp_id)
+	except:
+		data_already_exists = browser.find_element_by_xpath("//*[@id='tblMain']/tbody/tr[5]/td/center/font").text + "\n"
+		file_to_write.write(data_already_exists)
 
-	# time.sleep(3)
+	time.sleep(3)
 
 # Function Existing students > new entry
 def new_entry(student_info):
@@ -118,13 +153,49 @@ def new_entry(student_info):
 	student_info = CaseInsensitiveDict(student_info)
 
 	religion = student_info["Religion"].lower()
-	admission_date = valid_date(student_info["Admission Date"])
+
+	if "Admission Date" in student_info:
+		admission_date = valid_date(student_info["Admission Date"])
+	else:
+		admission_date = valid_date(student_info["Date of Admission"])
+
 	admission_num = student_info["Admission number"]
 	address = student_info["Address"]
-	father_name = student_info["Father name"]
-	mother_name = student_info["Mother name"]
-	social_category = student_info["Category"].lower()
-	mob_num = student_info["Mob No"]
+
+	if "Father name" in student_info:
+		father_name = student_info["Father name"]
+	else:
+		father_name = student_info["Father's name"]
+
+	if "mother name" in student_info:
+		mother_name = student_info["mother name"]
+	else:
+		mother_name = student_info["mother's name"]
+
+	if "Category" in student_info:
+		social_category = student_info["Category"].lower()
+	else:
+		social_category = student_info["Social Category"].lower()
+
+	if "phone number" in student_info:
+		mob_num = student_info["phone number"]
+	else:
+		mob_num = student_info["Mob No"]
+
+	if "First" in student_info:
+		student_name = student_info["First"]
+	else:
+		student_name = student_info["First Name"]
+
+	middle_name = student_info["Middle name"]
+
+	last_name = student_info["Last name"]
+
+	name = student_name + " " + middle_name + " " + last_name
+
+	name = name.strip()
+
+	name = re.sub(' +', ' ', name)
 
 	browser.switch_to.default_content()
 
@@ -158,7 +229,11 @@ def new_entry(student_info):
 
 	time.sleep(1)
 
-	grade = str(student_info["Class"])
+	if "class" in student_info:
+		grade = str(student_info["Class"])
+	else:
+		grade = str(student_info["grade"])
+
 
 	grade_xpath_map = {"1": 4, "2": 5, "3": 6, "4": 7, "5": 8, "I": 4, "II": 5, "III": 6, "IV": 7, "V": 8}
 
@@ -173,7 +248,26 @@ def new_entry(student_info):
 
 	# select student name
 	# Assumption - Just 1 name in the list
-	browser.find_element_by_xpath("//*[@id='ddlStudent']/option[2]").click()
+	selector = Select(browser.find_element_by_xpath("//*[@id='ddlStudent']"))
+
+	# print(name)
+
+	options = selector.options
+	name_found_flag = False
+	for index in range(0, len(options)-1):
+		option_text = options[index].text
+		# print(option_text)
+		if name.lower() in option_text.lower():
+			options[index].click()
+			name_found_flag = True
+
+	if not name_found_flag:
+		name_idx = len(options)
+		hidden_name_option = browser.find_element_by_xpath("//*[@id='ddlStudent']/option[{}]".format(name_idx))
+		if name.lower() in hidden_name_option.text.lower():
+			hidden_name_option.click()
+
+	# browser.find_element_by_xpath("//*[@id='ddlStudent']/option[1]").click()
 	time.sleep(2)
 
 	# click next
@@ -197,14 +291,14 @@ def new_entry(student_info):
 
 	if social_category == "general" or social_category == "gen":
 		browser.find_element_by_xpath("//*[@id='ddlCategory']/option[2]").click()
-	elif social_category == "sc":
+	elif social_category == "sc" or social_category == "s/c":
 		browser.find_element_by_xpath("//*[@id='ddlCategory']/option[3]").click()
-	elif social_category == "st":
+	elif social_category == "st" or social_category == "s/t":
 		browser.find_element_by_xpath("//*[@id='ddlCategory']/option[4]").click()
 	elif social_category == "obc":
 		browser.find_element_by_xpath("//*[@id='ddlCategory']/option[5]").click()
 	else:
-		raise Exception("invalid social category")
+		raise Exception("invalid social category - {}".format(social_category))
 
 	browser.find_element_by_xpath("//*[@id='txtAdmissionDate']").send_keys(admission_date)
 
@@ -223,6 +317,8 @@ def new_entry(student_info):
 	browser.find_element_by_xpath("//*[@id='rbBirthCertificate_0']").click()
 
 	browser.find_element_by_xpath("//*[@id='rbtnDisability_1']").click()
+
+	time.sleep(1)
 
 	# Create family ID
 	browser.find_element_by_xpath("//*[@id='Label1']/a").click()
@@ -249,31 +345,53 @@ def new_entry(student_info):
 	# Switch to left panel
 	browser.switch_to.frame(browser.find_element_by_css_selector("html > frameset > frameset > frame:nth-child(2)"))
 
-	# browser.find_element(By.ID,"btnSumbit").click()
+	browser.find_element(By.ID,"btnSumbit").click()
 
-	# student_id = browser.find_element_by_xpath("//*[@id='lblMessage']/font").text + "\n"
+	student_id = browser.find_element_by_xpath("//*[@id='lblMessage']/font").text + "\n"
 
-	# file_to_write.write(student_id)
+	file_to_write.write(student_id)
 
+	if("Temporary" in student_id):
+		print(student_id)
+		sys.exit()
 
-def main():
+def data_validate(student_json_list):
 
-	website_link = "http://edustud.nic.in/mis/MisAdmin/frmMisLoginStudent.aspx"
+	sample_student = CaseInsensitiveDict(student_json_list[0])
 
-	f = open('student_info_for_npa.json')
-	student_json_list = json.load(f)
+	key_list = ["First", "First Name", "Middle name", "Last name", "Class", "grade", "Section", "DOB", "Birth date", "Date of birth", "Religion", "Admission Date", "Date of Admission", "Admission number", "Address", "Father name", "Mother name", "Category", "Mob No"]
 
-	chrome_options = Options()
-	chrome_options.add_argument('--headless')
-	chrome_options.add_argument('--no-sandbox')
-	chrome_options.add_argument('--disable-dev-shm-usage')
-	# options.headless = True
+	key_error = []
 
-	browser = webdriver.Chrome(options=chrome_options)
+	for key_name in key_list:
+		if key_name not in sample_student:
+			key_error.append(key_name)
 
-	browser.get(website_link)
+	print("Keys missing in data - " + str(key_error))
 
+	for student_info in student_json_list:
+
+		student_info = CaseInsensitiveDict(student_info)
+		if "DOB" in student_info:
+			dob = student_info["DOB"]
+		elif "Birth date" in student_info:
+			dob = student_info["Birth date"]
+		else:
+			dob = student_info["Date of birth"]
+
+		dob = valid_date(dob)
+
+		# print(student_info)
+
+		if "Admission Date" in student_info:
+			admission_date = valid_date(student_info["Admission Date"])
+		else:
+			admission_date = valid_date(student_info["Date of Admission"])
+
+def enter_login(browser):
 	print("Entering username, password and captcha")
+
+	old_url = browser.current_url
 
 	browser.find_element_by_xpath("//*[@id='txtLoginid']").send_keys("1959115")
 
@@ -288,12 +406,42 @@ def main():
 	captcha = read_text_from_image()
 
 	browser.find_element_by_xpath("//*[@id='txtimg']").send_keys(captcha)
+	file_to_write.write(captcha)
 
 	time.sleep(3)
 
 	browser.find_element_by_xpath("//*[@id='btnSubmit']").click()
 
-	time.sleep(2)
+	time.sleep(3)
+
+	new_url = browser.current_url
+
+	## Retry in case captcha is incorrect
+	if new_url == old_url:
+		enter_login(browser)
+
+
+# def main():
+
+if __name__ == '__main__':
+	website_link = "http://edustud.nic.in/mis/MisAdmin/frmMisLoginStudent.aspx"
+
+	f = open('student_info_for_npa.json')
+	student_json_list = json.load(f)
+
+	data_validate(student_json_list)
+
+	chrome_options = Options()
+	# chrome_options.add_argument('--headless')
+	chrome_options.add_argument('--no-sandbox')
+	chrome_options.add_argument('--disable-dev-shm-usage')
+	# options.headless = True
+
+	browser = webdriver.Chrome(options=chrome_options)
+
+	browser.get(website_link)
+
+	enter_login(browser)
 
 	student_info = student_json_list[0]
 
@@ -301,9 +449,7 @@ def main():
 	# 	print(i)
 	# 	time.sleep(1)
 
+
 	for student_info in student_json_list:
 		direct_admission(student_info)
-		# new_entry(student_info)
-
-if __name__ == '__main__':
-	main()
+		new_entry(student_info)

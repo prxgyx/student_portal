@@ -4,3 +4,4 @@ IMG.png
 recognized.txt
 venv/
 .DS_Store
+chromedriver*
